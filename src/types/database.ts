@@ -17,6 +17,8 @@ export interface UserStats {
   current_streak: number;
   longest_streak: number;
   average_score: number;
+  xp: number;
+  level: number;
   created_at: string;
   updated_at: string;
 }
