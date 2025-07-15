@@ -7,7 +7,8 @@ import type {
   DailyChallenge, 
   UserStreak,
   Case,
-  Submission 
+  Submission,
+  CaseProgress
 } from '@/types/database';
 
 // User Profile Functions
