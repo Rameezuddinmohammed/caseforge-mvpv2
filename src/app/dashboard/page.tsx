@@ -6,7 +6,11 @@ import { getUserStats, getUserProfile } from '@/lib/database';
 import type { UserStats, UserProfile } from '@/types/database';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Navigation from '@/components/Navigation';
-import DailyChallengeWidget from '@/components/DailyChallengeWidget';
+import MinisStrip from '@/components/MinisStrip';
+import XPProgressBar from '@/components/XPProgressBar';
+import ResumeCaseButton from '@/components/ResumeCaseButton';
+import EnhancedDailyChallengeWidget from '@/components/EnhancedDailyChallengeWidget';
+import RecommendedCasesWidget from '@/components/RecommendedCasesWidget';
 import AchievementsWidget from '@/components/AchievementsWidget';
 import { 
   BookOpen, 
@@ -61,16 +65,25 @@ export default function DashboardPage() {
     <ProtectedRoute>
       <main className="min-h-screen bg-background">
         <Navigation />
+        <MinisStrip />
         
         <div className="kaggle-container py-10">
-          {/* Hero Section */}
+          {/* Hero Section with XP Progress */}
           <div className="text-center kaggle-page-header">
             <h1 className="kaggle-page-title">
               Welcome back, {displayName}! 👋
             </h1>
-            <p className="kaggle-page-description">
+            <p className="kaggle-page-description mb-6">
               Ready to tackle today's business challenges?
             </p>
+            
+            {/* XP Progress Bar */}
+            <div className="max-w-md mx-auto mb-6">
+              <XPProgressBar />
+            </div>
+            
+            {/* Resume Case Button */}
+            <ResumeCaseButton />
           </div>
           
           {/* Stats Cards Grid */}
@@ -151,15 +164,20 @@ export default function DashboardPage() {
 
           {/* Main Content Grid */}
           <div className="kaggle-content-grid mb-12">
-            {/* Daily Challenge - Takes up 2 columns on large screens */}
+            {/* Enhanced Daily Challenge - Takes up 2 columns on large screens */}
             <div className="lg:col-span-2">
-              <DailyChallengeWidget />
+              <EnhancedDailyChallengeWidget />
             </div>
 
             {/* Achievements - Takes up 1 column */}
             <div>
               <AchievementsWidget />
             </div>
+          </div>
+
+          {/* Recommended Cases */}
+          <div className="mb-12">
+            <RecommendedCasesWidget />
           </div>
 
           {/* Quick Actions */}
