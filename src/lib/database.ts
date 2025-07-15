@@ -207,7 +207,8 @@ export async function getDailyChallenge(date?: string): Promise<DailyChallenge |
   try {
     const challengeDate = date || new Date().toISOString().split('T')[0];
     
-    const { data, error } = await supabase
+    // First, try to get existing daily challenge
+    let { data, error } = await supabase
       .from('daily_challenges')
       .select(`
         *,
@@ -217,6 +218,43 @@ export async function getDailyChallenge(date?: string): Promise<DailyChallenge |
       .eq('is_active', true)
       .single();
     
+    if (error && error.code === 'PGRST116') {
+      // No challenge exists for today, create one with a random case
+      const { data: randomCase, error: caseError } = await supabase
+        .from('cases')
+        .select('id')
+        .eq('is_active', true)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+      
+      if (caseError || !randomCase) {
+        console.warn('No cases available for daily challenge');
+        return null;
+      }
+      
+      // Create new daily challenge
+      const { data: newChallenge, error: createError } = await supabase
+        .from('daily_challenges')
+        .insert([{
+          case_id: randomCase.id,
+          challenge_date: challengeDate,
+          is_active: true
+        }])
+        .select(`
+          *,
+          case:cases(*)
+        `)
+        .single();
+      
+      if (createError) {
+        console.warn('Error creating daily challenge:', createError.message);
+        return null;
+      }
+      
+      return newChallenge;
+    }
+    
     if (error) {
       console.warn('Error fetching daily challenge:', error.message);
       return null;
@@ -225,6 +263,50 @@ export async function getDailyChallenge(date?: string): Promise<DailyChallenge |
     return data;
   } catch (error) {
     console.warn('Exception fetching daily challenge:', error);
+    return null;
+  }
+}
+
+// Generate random daily challenge
+export async function generateDailyChallenge(): Promise<DailyChallenge | null> {
+  try {
+    const challengeDate = new Date().toISOString().split('T')[0];
+    
+    // Get a random case
+    const { data: cases, error: casesError } = await supabase
+      .from('cases')
+      .select('id')
+      .eq('is_active', true);
+    
+    if (casesError || !cases || cases.length === 0) {
+      console.warn('No cases available for daily challenge');
+      return null;
+    }
+    
+    const randomCase = cases[Math.floor(Math.random() * cases.length)];
+    
+    // Create new daily challenge
+    const { data: newChallenge, error: createError } = await supabase
+      .from('daily_challenges')
+      .insert([{
+        case_id: randomCase.id,
+        challenge_date: challengeDate,
+        is_active: true
+      }])
+      .select(`
+        *,
+        case:cases(*)
+      `)
+      .single();
+    
+    if (createError) {
+      console.warn('Error creating daily challenge:', createError.message);
+      return null;
+    }
+    
+    return newChallenge;
+  } catch (error) {
+    console.warn('Exception generating daily challenge:', error);
     return null;
   }
 }
