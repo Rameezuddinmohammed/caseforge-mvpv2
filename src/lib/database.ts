@@ -460,4 +460,231 @@ export async function getUserSubmissions(userId: string): Promise<Submission[]> 
     console.warn('Exception fetching user submissions:', error);
     return [];
   }
+}
+
+// Case Progress Functions
+export async function getUserCaseProgress(userId: string): Promise<CaseProgress[]> {
+  try {
+    const { data, error } = await supabase
+      .from('case_progress')
+      .select(`
+        *,
+        case:cases(*)
+      `)
+      .eq('user_id', userId)
+      .order('last_accessed', { ascending: false });
+    
+    if (error) {
+      console.warn('Error fetching case progress:', error.message);
+      return [];
+    }
+    
+    return data || [];
+  } catch (error) {
+    console.warn('Exception fetching case progress:', error);
+    return [];
+  }
+}
+
+export async function createCaseProgress(progress: Partial<CaseProgress>): Promise<CaseProgress | null> {
+  try {
+    const { data, error } = await supabase
+      .from('case_progress')
+      .insert([progress])
+      .select(`
+        *,
+        case:cases(*)
+      `)
+      .single();
+    
+    if (error) {
+      console.warn('Error creating case progress:', error.message);
+      return null;
+    }
+    
+    return data;
+  } catch (error) {
+    console.warn('Exception creating case progress:', error);
+    return null;
+  }
+}
+
+export async function updateCaseProgress(userId: string, caseId: string, updates: Partial<CaseProgress>): Promise<CaseProgress | null> {
+  try {
+    const { data, error } = await supabase
+      .from('case_progress')
+      .update({
+        ...updates,
+        last_accessed: new Date().toISOString()
+      })
+      .eq('user_id', userId)
+      .eq('case_id', caseId)
+      .select(`
+        *,
+        case:cases(*)
+      `)
+      .single();
+    
+    if (error) {
+      console.warn('Error updating case progress:', error.message);
+      return null;
+    }
+    
+    return data;
+  } catch (error) {
+    console.warn('Exception updating case progress:', error);
+    return null;
+  }
+}
+
+export async function deleteCaseProgress(userId: string, caseId: string): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('case_progress')
+      .delete()
+      .eq('user_id', userId)
+      .eq('case_id', caseId);
+    
+    if (error) {
+      console.warn('Error deleting case progress:', error.message);
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.warn('Exception deleting case progress:', error);
+    return false;
+  }
+}
+
+// Enhanced case functions
+export async function getRecommendedCases(userId: string, limit: number = 4): Promise<Case[]> {
+  try {
+    // Get user's submission history to understand their preferences
+    const { data: submissions, error: submissionError } = await supabase
+      .from('submissions')
+      .select('case_id, score, case:cases(domain, difficulty)')
+      .eq('user_id', userId)
+      .eq('status', 'completed');
+    
+    if (submissionError) {
+      console.warn('Error fetching user submissions for recommendations:', submissionError.message);
+      // Fall back to popular cases
+      return getPopularCases(limit);
+    }
+    
+    if (!submissions || submissions.length === 0) {
+      // User has no history, show top picks
+      return getTopPicksCases(limit);
+    }
+    
+    // Get domains user has tried
+    const triedDomains = Array.from(new Set(submissions.map(s => s.case?.domain).filter(Boolean)));
+    
+    // Get average difficulty user performs well on
+    const averageScore = submissions.reduce((sum, s) => sum + (s.score || 0), 0) / submissions.length;
+    const recommendedDifficulty = averageScore >= 80 ? 3 : averageScore >= 60 ? 2 : 1;
+    
+    // Get cases from new domains or similar difficulty
+    const { data: recommendedCases, error: recError } = await supabase
+      .from('cases')
+      .select('*')
+      .eq('is_active', true)
+      .not('domain', 'in', `(${triedDomains.join(',')})`)
+      .eq('difficulty', recommendedDifficulty)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    
+    if (recError || !recommendedCases || recommendedCases.length === 0) {
+      // Fall back to popular cases
+      return getPopularCases(limit);
+    }
+    
+    return recommendedCases;
+  } catch (error) {
+    console.warn('Exception getting recommended cases:', error);
+    return getPopularCases(limit);
+  }
+}
+
+export async function getTopPicksCases(limit: number = 4): Promise<Case[]> {
+  try {
+    const { data, error } = await supabase
+      .from('cases')
+      .select('*')
+      .eq('is_active', true)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    
+    if (error) {
+      console.warn('Error fetching top picks cases:', error.message);
+      return [];
+    }
+    
+    return data || [];
+  } catch (error) {
+    console.warn('Exception fetching top picks cases:', error);
+    return [];
+  }
+}
+
+export async function getPopularCases(limit: number = 4): Promise<Case[]> {
+  try {
+    // Get most attempted cases
+    const { data, error } = await supabase
+      .from('cases')
+      .select(`
+        *,
+        submissions!inner(case_id)
+      `)
+      .eq('is_active', true)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    
+    if (error) {
+      console.warn('Error fetching popular cases:', error.message);
+      // Fall back to recent cases
+      return getTopPicksCases(limit);
+    }
+    
+    return data || [];
+  } catch (error) {
+    console.warn('Exception fetching popular cases:', error);
+    return getTopPicksCases(limit);
+  }
+}
+
+// XP and Level calculation functions
+export function calculateXPForNextLevel(currentLevel: number): number {
+  // Level 1: 0-1000 XP, Level 2: 1000-2500 XP, Level 3: 2500-5000 XP, etc.
+  const baseXP = 1000;
+  const multiplier = 1.5;
+  return Math.floor(baseXP * Math.pow(multiplier, currentLevel - 1));
+}
+
+export function calculateLevelFromXP(xp: number): number {
+  let level = 1;
+  let totalXPRequired = 0;
+  
+  while (totalXPRequired + calculateXPForNextLevel(level) <= xp) {
+    totalXPRequired += calculateXPForNextLevel(level);
+    level++;
+  }
+  
+  return level;
+}
+
+export function getXPProgressForLevel(xp: number, level: number): { current: number, required: number } {
+  let totalXPForPreviousLevels = 0;
+  for (let i = 1; i < level; i++) {
+    totalXPForPreviousLevels += calculateXPForNextLevel(i);
+  }
+  
+  const currentXPInLevel = xp - totalXPForPreviousLevels;
+  const requiredXPForLevel = calculateXPForNextLevel(level);
+  
+  return {
+    current: currentXPInLevel,
+    required: requiredXPForLevel
+  };
 } 
