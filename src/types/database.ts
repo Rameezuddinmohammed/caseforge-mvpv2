@@ -80,8 +80,20 @@ export interface Submission {
   score?: number;
   feedback?: string;
   time_spent?: number;
+  status: string;
+  started_at: string;
   submitted_at: string;
   reviewed_at?: string;
   reviewed_by?: string;
+  case?: Case;
+}
+
+export interface CaseProgress {
+  id: string;
+  user_id: string;
+  case_id: string;
+  started_at: string;
+  last_accessed: string;
+  progress_data: any;
   case?: Case;
 } 
