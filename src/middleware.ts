@@ -35,15 +35,15 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL('/dashboard', req.url));
   }
 
-  // If accessing root, redirect based on auth status
-  if (pathname === '/') {
-    if (session) {
-      return NextResponse.redirect(new URL('/dashboard', req.url));
-    } else {
-      return NextResponse.redirect(new URL('/login', req.url));
-    }
+// If accessing root, redirect based on auth status
+if (pathname === '/') {
+  if (session) {
+    return NextResponse.redirect(new URL('/dashboard', req.url));
+  } else {
+    // Change this line to point to our new landing page
+    return NextResponse.redirect(new URL('/landing', req.url));
   }
-
+}
   return res;
 }
 

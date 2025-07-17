@@ -14,9 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Caseforge - Legal Case Management",
-  description: "Modern legal case management platform",
-};
+    title: "Caseforge | The Practice Arena for Future Leaders",
+    description: "Solve real-world business cases, earn XP, and launch your career.",
+  };
 
 export default function RootLayout({
   children,
